@@ -6,7 +6,13 @@ import pygame
 
 WIDTH, HEIGHT = 1200, 600
 BRIDGE_WORLD_WIDTH = 3600
-NAFPAKTOS_WORLD_WIDTH = BRIDGE_WORLD_WIDTH * 2
+NAFPAKTOS_WORLD_WIDTH = BRIDGE_WORLD_WIDTH
+NAFPAKTOS_CASTLE_X = NAFPAKTOS_WORLD_WIDTH - 540 - 180
+MOUNTAIN_RIVER_WORLD_WIDTH = 3000
+FERRY_BOAT_WORLD_WIDTH = 3000
+SICK_APATOSAURUS_X = MOUNTAIN_RIVER_WORLD_WIDTH - 580
+ROCKY_BARRIER_X = SICK_APATOSAURUS_X + 308
+STONE_BRIDGE_DECK_Y = 272
 FPS = 60
 ROAD_TOP = 485
 GROUND_Y = ROAD_TOP - 66
@@ -20,6 +26,14 @@ CROUCH_FRAME_PATH = Path(__file__).with_name("couching.png")
 MEAT_IMAGE_PATH = Path(__file__).with_name("meat.png")
 BOTTLE_IMAGE_PATH = Path(__file__).with_name("bottle.png")
 WEAPON_IMAGE_PATH = Path(__file__).with_name("weapon.png")
+SLEEPING_APATOSAURUS_IMAGE_PATH = Path(__file__).with_name("apatosaurousSleeping.png")
+AWAKE_APATOSAURUS_IMAGE_PATH = Path(__file__).with_name("apatosaurousUp.png")
+LOCHNESS_IMAGE_PATH = Path(__file__).with_name("lochness.png")
+MONSTER_NECK_IMAGE_PATH = Path(__file__).with_name("monsterneck.png")
+VELOCIRAPTOR_FRAME_PATHS = (
+    Path(__file__).with_name("velociraptor1.png"),
+    Path(__file__).with_name("velociraptor2.png"),
+)
 RESOURCE_TARGETS = {"meat": 3, "water": 3, "weapon": 3}
 RESOURCE_WIDTHS = {"meat": 40, "water": 52, "weapon": 45}
 RESOURCE_IMAGE_PATHS = {
@@ -223,7 +237,7 @@ class NafpaktosBackground:
             pygame.draw.polygon(screen, (54, 112, 151), [(position_x - 3, water_y - 53), (position_x - 3, water_y - 6), (position_x - 34, water_y - 6)])
 
     def _draw_cafes(self, screen, camera_x):
-        cafe_positions = (420, 1220, 2050, 2940, 3830, 4720, 5700, 6420)
+        cafe_positions = (420, 1120, 1820, 2480)
         for index, world_x in enumerate(cafe_positions):
             position_x = world_x - camera_x
             wall_color = ((246, 233, 205), (239, 223, 194), (248, 238, 215))[index % 3]
@@ -235,7 +249,7 @@ class NafpaktosBackground:
             pygame.draw.rect(screen, (255, 248, 225), (position_x + 18, 435, 115, 11))
 
     def _draw_souvenir_shops(self, screen, camera_x):
-        shop_positions = (790, 1660, 2550, 3460, 4380, 5400, 6250)
+        shop_positions = (760, 1500, 2220)
         for index, world_x in enumerate(shop_positions):
             position_x = world_x - camera_x
             wall_color = ((236, 224, 193), (227, 213, 184), (242, 229, 203))[index % 3]
@@ -252,7 +266,7 @@ class NafpaktosBackground:
     def _draw_castle(self, screen, camera_x):
         castle_width = 540
         castle_height = 125
-        castle_x = NAFPAKTOS_WORLD_WIDTH - castle_width - 180 - camera_x
+        castle_x = NAFPAKTOS_CASTLE_X - camera_x
         castle_y = ROAD_TOP - castle_height
         pygame.draw.rect(screen, (157, 142, 113), (castle_x, castle_y, castle_width, castle_height))
         for tower_x in (castle_x, castle_x + 240, castle_x + 488):
@@ -260,6 +274,318 @@ class NafpaktosBackground:
             pygame.draw.polygon(screen, (116, 102, 80), [(tower_x - 5, castle_y - 35), (tower_x + 26, castle_y - 60), (tower_x + 57, castle_y - 35)])
         for window_x in range(castle_x + 28, castle_x + castle_width - 24, 48):
             pygame.draw.rect(screen, (72, 79, 77), (window_x, castle_y + 50, 14, 24))
+
+
+class MountainRiverBackground:
+    def __init__(self):
+        self.water_offset = 0.0
+        self.lochness_visible = False
+        self.lochness_completed = False
+        self.lochness_frame_index = 0
+        self.lochness_frame_time = 0.0
+        self.lochness_frames = self._load_lochness_frames()
+        self.fish = [
+            [260.0, 500, 230],
+            [700.0, 540, 280],
+            [1210.0, 510, 250],
+            [1690.0, 550, 300],
+            [2200.0, 490, 260],
+            [2680.0, 535, 290],
+        ]
+        self.sign_font = pygame.font.Font(None, 28)
+
+    def update(self, delta_time):
+        self.water_offset = (self.water_offset + 90 * delta_time) % 80
+        if self.lochness_visible:
+            self.lochness_frame_time += delta_time
+            if self.lochness_frame_time >= 0.25:
+                self.lochness_frame_time = 0.0
+                if self.lochness_frame_index < len(self.lochness_frames) - 1:
+                    self.lochness_frame_index += 1
+                else:
+                    self.lochness_visible = False
+                    self.lochness_completed = True
+        for fish in self.fish:
+            fish[0] -= fish[2] * delta_time
+            if fish[0] < -45:
+                fish[0] = MOUNTAIN_RIVER_WORLD_WIDTH + 45
+
+    def draw(self, screen, camera_x):
+        screen.fill((115, 178, 206))
+        self._draw_mountains(screen, camera_x)
+        self._draw_pines(screen, camera_x)
+        pygame.draw.rect(screen, (43, 135, 181), (0, 340, WIDTH, HEIGHT - 340))
+        self._draw_water_flow(screen, camera_x)
+        self._draw_fish(screen, camera_x)
+        if self.lochness_visible:
+            self._draw_lochness(screen)
+        self._draw_arch_bridge(screen, camera_x)
+        self._draw_rocky_barrier(screen, camera_x)
+        self._draw_nafpaktos_sign(screen, camera_x)
+        self._draw_antirrio_sign(screen, camera_x)
+
+    def _draw_nafpaktos_sign(self, screen, camera_x):
+        sign_x = 5 - camera_x
+        sign_y = ROAD_TOP - 105
+        sign_width = 160
+        sign_height = 64
+        sign_color = (24, 91, 166)
+        border_color = (238, 245, 250)
+        pygame.draw.rect(screen, (104, 110, 113), (sign_x + 88, sign_y + sign_height, 10, ROAD_TOP - sign_y - sign_height))
+        points = [
+            (sign_x, sign_y + sign_height // 2),
+            (sign_x + 25, sign_y),
+            (sign_x + sign_width, sign_y),
+            (sign_x + sign_width, sign_y + sign_height),
+            (sign_x + 25, sign_y + sign_height),
+        ]
+        pygame.draw.polygon(screen, sign_color, points)
+        pygame.draw.lines(screen, border_color, True, points, 3)
+        label = self.sign_font.render("Ναύπακτος", True, border_color)
+        screen.blit(label, label.get_rect(center=(sign_x + 95, sign_y + sign_height // 2)))
+
+    def _draw_antirrio_sign(self, screen, camera_x):
+        sign_width = 140
+        sign_height = 64
+        sign_x = MOUNTAIN_RIVER_WORLD_WIDTH - sign_width - 55 - camera_x
+        sign_y = STONE_BRIDGE_DECK_Y - sign_height - 86
+        sign_color = (24, 91, 166)
+        border_color = (238, 245, 250)
+        pygame.draw.rect(screen, (104, 110, 113), (sign_x + 60, sign_y + sign_height, 10, STONE_BRIDGE_DECK_Y - sign_y - sign_height))
+        points = [
+            (sign_x, sign_y),
+            (sign_x + sign_width - 25, sign_y),
+            (sign_x + sign_width, sign_y + sign_height // 2),
+            (sign_x + sign_width - 25, sign_y + sign_height),
+            (sign_x, sign_y + sign_height),
+        ]
+        pygame.draw.polygon(screen, sign_color, points)
+        pygame.draw.lines(screen, border_color, True, points, 3)
+        label = self.sign_font.render("Αντίριο", True, border_color)
+        screen.blit(label, label.get_rect(center=(sign_x + 60, sign_y + sign_height // 2)))
+
+    def _draw_rocky_barrier(self, screen, camera_x):
+        barrier_x = ROCKY_BARRIER_X - camera_x
+        rock_base = (89, 86, 80)
+        rock_mid = (125, 120, 109)
+        rock_light = (163, 157, 142)
+
+        pygame.draw.polygon(screen, rock_base, [
+            (barrier_x - 18, ROAD_TOP),
+            (barrier_x - 12, 360),
+            (barrier_x + 35, 300),
+            (barrier_x + 110, 320),
+            (barrier_x + 155, 385),
+            (barrier_x + 145, ROAD_TOP),
+        ])
+        pygame.draw.polygon(screen, rock_mid, [
+            (barrier_x, ROAD_TOP),
+            (barrier_x + 4, 372),
+            (barrier_x + 42, 318),
+            (barrier_x + 84, 335),
+            (barrier_x + 126, 395),
+            (barrier_x + 120, ROAD_TOP),
+        ])
+        pygame.draw.polygon(screen, rock_light, [
+            (barrier_x + 25, 392),
+            (barrier_x + 47, 338),
+            (barrier_x + 75, 350),
+            (barrier_x + 67, 416),
+        ])
+        pygame.draw.polygon(screen, rock_light, [
+            (barrier_x + 81, 430),
+            (barrier_x + 98, 374),
+            (barrier_x + 120, 403),
+            (barrier_x + 112, 456),
+        ])
+
+    def _draw_mountains(self, screen, camera_x):
+        first_mountain_x = int(camera_x // 500) * 500 - 500
+        for world_x in range(first_mountain_x, int(camera_x + WIDTH + 500), 500):
+            position_x = world_x - camera_x
+            pygame.draw.polygon(screen, (72, 111, 99), [(position_x, 360), (position_x + 220, 70), (position_x + 470, 360)])
+            pygame.draw.polygon(screen, (92, 133, 111), [(position_x + 190, 360), (position_x + 390, 115), (position_x + 650, 360)])
+
+    def _draw_pines(self, screen, camera_x):
+        first_tree_x = int(camera_x // 130) * 130 - 130
+        for world_x in range(first_tree_x, int(camera_x + WIDTH + 130), 130):
+            position_x = world_x - camera_x
+            height = 105 + (world_x // 130 % 3) * 23
+            base_y = 410
+            pygame.draw.rect(screen, (77, 59, 39), (position_x - 5, base_y - height // 3, 10, height // 3))
+            for level, width in enumerate((66, 52, 38)):
+                top_y = base_y - height + level * 26
+                pygame.draw.polygon(screen, (28, 91, 65), [(position_x, top_y), (position_x - width // 2, top_y + 64), (position_x + width // 2, top_y + 64)])
+
+    def _draw_water_flow(self, screen, camera_x):
+        for world_x in range(int(camera_x // 80) * 80 - 80, int(camera_x + WIDTH + 80), 80):
+            position_x = world_x - camera_x - self.water_offset
+            pygame.draw.line(screen, (137, 211, 229), (position_x, 380), (position_x + 42, 380), 3)
+            pygame.draw.line(screen, (112, 199, 224), (position_x + 25, 460), (position_x + 70, 460), 3)
+            pygame.draw.line(screen, (146, 218, 235), (position_x + 8, 515), (position_x + 58, 515), 3)
+            pygame.draw.line(screen, (104, 193, 220), (position_x + 42, 565), (position_x + 78, 565), 3)
+
+    def _draw_fish(self, screen, camera_x):
+        for position_x, position_y, _ in self.fish:
+            draw_x = position_x - camera_x
+            color = (235, 151, 74)
+            pygame.draw.ellipse(screen, color, (draw_x, position_y, 28, 12))
+            pygame.draw.polygon(screen, color, [(draw_x + 25, position_y + 6), (draw_x + 38, position_y), (draw_x + 38, position_y + 12)])
+            pygame.draw.circle(screen, (30, 47, 57), (round(draw_x + 8), position_y + 4), 2)
+
+    @staticmethod
+    def _load_lochness_frames():
+        sprite_sheet = pygame.image.load(LOCHNESS_IMAGE_PATH).convert_alpha()
+        frame_height = sprite_sheet.get_height() // 5
+        frames = []
+        for frame_index in range(5):
+            frame = sprite_sheet.subsurface((0, frame_index * frame_height, sprite_sheet.get_width(), frame_height))
+            frames.append(pygame.transform.smoothscale(frame, (250, 60)))
+        return frames
+
+    def _draw_lochness(self, screen):
+        position_x = 25 - self.lochness_frame_index * 24
+        screen.blit(self.lochness_frames[self.lochness_frame_index], (position_x, HEIGHT - 125))
+
+    def _draw_arch_bridge(self, screen, camera_x):
+        bridge_x = MOUNTAIN_RIVER_WORLD_WIDTH - 350 - camera_x
+        deck_y = STONE_BRIDGE_DECK_Y - 12
+        stone = (151, 145, 129)
+        light_stone = (188, 180, 160)
+        dark_stone = (104, 103, 96)
+        water = (43, 135, 181)
+
+        pygame.draw.rect(screen, dark_stone, (bridge_x - 10, deck_y + 20, 370, 48), border_radius=4)
+        pygame.draw.rect(screen, stone, (bridge_x - 10, deck_y + 12, 370, 48), border_radius=4)
+        pygame.draw.rect(screen, light_stone, (bridge_x - 10, deck_y + 12, 370, 8), border_radius=3)
+        pygame.draw.line(screen, dark_stone, (bridge_x, deck_y + 43), (bridge_x + 350, deck_y + 43), 3)
+
+        for rail_x in range(int(bridge_x), int(bridge_x + 350), 38):
+            pygame.draw.rect(screen, stone, (rail_x, deck_y - 30, 11, 45))
+            pygame.draw.rect(screen, light_stone, (rail_x - 3, deck_y - 34, 17, 7))
+        pygame.draw.line(screen, stone, (bridge_x, deck_y - 10), (bridge_x + 350, deck_y - 10), 7)
+
+        arch_center = (bridge_x + 175, 455)
+        pygame.draw.circle(screen, stone, arch_center, 165)
+        pygame.draw.rect(screen, stone, (bridge_x + 8, 410, 334, 75))
+        pygame.draw.circle(screen, water, arch_center, 126)
+        pygame.draw.rect(screen, water, (bridge_x + 49, 455, 252, 30))
+        pygame.draw.rect(screen, dark_stone, (bridge_x + 8, 432, 40, 53))
+        pygame.draw.rect(screen, dark_stone, (bridge_x + 302, 432, 40, 53))
+
+        for row_y in (310, 338, 366, 394):
+            offset = 18 if row_y % 2 == 0 else 0
+            for stone_x in range(int(bridge_x + offset), int(bridge_x + 350), 44):
+                pygame.draw.line(screen, dark_stone, (stone_x, row_y), (stone_x + 26, row_y), 2)
+
+
+class FerryBoatBackground:
+    def __init__(self):
+        self.wave_offset = 0.0
+        self.rain_offset = 0.0
+        self.storm_active = False
+        self.lightning_time = 0.0
+        self.lightning_cooldown = 0.0
+        self.monster_window_index = -1
+        self.monster_image = self._load_monster_image()
+        self.sign_font = pygame.font.Font(None, 28)
+
+    def update(self, delta_time):
+        self.wave_offset = (self.wave_offset + 110 * delta_time) % 120
+        if self.storm_active:
+            self.rain_offset = (self.rain_offset + 420 * delta_time) % 36
+            self.lightning_time = max(0.0, self.lightning_time - delta_time)
+            self.lightning_cooldown -= delta_time
+            if self.lightning_cooldown <= 0:
+                self._trigger_lightning()
+
+    def start_storm(self):
+        if not self.storm_active:
+            self.storm_active = True
+            self._trigger_lightning()
+
+    @staticmethod
+    def _load_monster_image():
+        image = pygame.image.load(MONSTER_NECK_IMAGE_PATH).convert_alpha()
+        return pygame.transform.smoothscale(image, (38, 58))
+
+    def _trigger_lightning(self):
+        window_count = FERRY_BOAT_WORLD_WIDTH // 300
+        self.monster_window_index = (self.monster_window_index + 1) % window_count
+        self.lightning_time = 0.22
+        self.lightning_cooldown = random.uniform(1.8, 3.2)
+
+    def draw(self, screen, camera_x):
+        screen.fill((8, 16, 35))
+        pygame.draw.rect(screen, (19, 31, 52), (0, 80, WIDTH, 315))
+        self._draw_stars(screen)
+        self._draw_ship_margin(screen)
+        pygame.draw.rect(screen, (50, 63, 77), (0, 390, WIDTH, 20))
+        pygame.draw.rect(screen, (83, 96, 107), (0, 410, WIDTH, 16))
+        self._draw_ship_walls(screen, camera_x)
+        self._draw_waves(screen, camera_x)
+        if self.storm_active:
+            self._draw_rain(screen)
+            self._draw_lightning(screen)
+        self._draw_exit_sign(screen, camera_x)
+
+    @staticmethod
+    def _draw_stars(screen):
+        for star_x, star_y in ((45, 106), (105, 154), (180, 120), (260, 92), (340, 145), (430, 112), (520, 164), (610, 96), (700, 138), (795, 108), (885, 158), (970, 94), (1060, 135), (1150, 105)):
+            pygame.draw.circle(screen, (215, 226, 236), (star_x, star_y), 2)
+
+    @staticmethod
+    def _draw_ship_margin(screen):
+        pygame.draw.line(screen, (107, 122, 137), (0, 190), (WIDTH, 190), 5)
+        pygame.draw.line(screen, (173, 189, 199), (0, 193), (WIDTH, 193), 2)
+
+    def _draw_ship_walls(self, screen, camera_x):
+        first_wall_x = int(camera_x // 300) * 300 - 300
+        for world_x in range(first_wall_x, int(camera_x + WIDTH + 300), 300):
+            position_x = world_x - camera_x
+            pygame.draw.rect(screen, (75, 88, 99), (position_x + 12, 220, 90, 10))
+            pygame.draw.rect(screen, (130, 177, 196), (position_x + 30, 250, 52, 72), border_radius=5)
+            monster_window_x = FERRY_BOAT_WORLD_WIDTH - (self.monster_window_index + 1) * 300
+            if self.lightning_time > 0 and world_x == monster_window_x:
+                monster_rect = self.monster_image.get_rect(center=(position_x + 56, 286))
+                screen.blit(self.monster_image, monster_rect)
+            pygame.draw.rect(screen, (197, 227, 235), (position_x + 35, 255, 42, 62), 2, border_radius=4)
+
+    def _draw_waves(self, screen, camera_x):
+        pygame.draw.rect(screen, (16, 76, 118), (0, 470, WIDTH, HEIGHT - 470))
+        first_wave_x = int(camera_x // 120) * 120 - 120
+        for wave_index, world_x in enumerate(range(first_wave_x, int(camera_x + WIDTH + 120), 120)):
+            position_x = world_x - camera_x - self.wave_offset
+            if wave_index % 2 == 0:
+                pygame.draw.arc(screen, (116, 194, 222), (position_x, 478, 92, 34), 3.35, 6.05, 4)
+                pygame.draw.arc(screen, (69, 147, 190), (position_x + 44, 535, 96, 30), 3.2, 5.9, 3)
+            else:
+                pygame.draw.arc(screen, (82, 164, 202), (position_x, 496, 92, 30), 0.15, 2.95, 4)
+                pygame.draw.arc(screen, (132, 205, 227), (position_x + 44, 548, 96, 28), 0.2, 2.9, 3)
+
+    def _draw_rain(self, screen):
+        for rain_x in range(-20, WIDTH + 30, 28):
+            start_y = (rain_x * 7 + self.rain_offset) % 130 - 25
+            for rain_y in range(int(start_y), HEIGHT, 130):
+                pygame.draw.line(screen, (153, 197, 221), (rain_x, rain_y), (rain_x - 7, rain_y + 20), 2)
+
+    def _draw_lightning(self, screen):
+        if self.lightning_time <= 0:
+            return
+        flash = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        flash.fill((210, 229, 255, 72))
+        screen.blit(flash, (0, 0))
+        bolt_x = WIDTH - 250
+        points = [(bolt_x, 85), (bolt_x - 18, 150), (bolt_x + 5, 150), (bolt_x - 30, 230), (bolt_x + 12, 178), (bolt_x - 8, 178)]
+        pygame.draw.lines(screen, (246, 251, 255), False, points, 6)
+        pygame.draw.lines(screen, (142, 201, 255), False, points, 2)
+
+    def _draw_exit_sign(self, screen, camera_x):
+        sign_x = FERRY_BOAT_WORLD_WIDTH - 190 - camera_x
+        pygame.draw.rect(screen, (29, 124, 83), (sign_x, 150, 160, 54), border_radius=6)
+        pygame.draw.rect(screen, (225, 244, 235), (sign_x, 150, 160, 54), 3, border_radius=6)
+        label = self.sign_font.render("EXIT", True, (255, 255, 255))
+        screen.blit(label, label.get_rect(center=(sign_x + 80, 177)))
 
 
 class Player(pygame.sprite.Sprite):
@@ -294,7 +620,7 @@ class Player(pygame.sprite.Sprite):
             frames.append(cls._load_frame(image_path, 78))
         return frames
 
-    def update(self, delta_time, keys, active, platforms, world_width):
+    def update(self, delta_time, keys, active, platforms, world_width, ground_y=ROAD_TOP):
         if not active:
             return
         self.ducking = bool(keys[pygame.K_DOWN]) and self.on_ground
@@ -305,7 +631,7 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_RIGHT]:
             self.rect.x += round(self.move_speed * delta_time)
             self.facing_left = False
-        self.rect.clamp_ip(pygame.Rect(0, 0, world_width, ROAD_TOP))
+        self.rect.left = max(0, min(self.rect.left, world_width - self.rect.width))
 
         if (keys[pygame.K_SPACE] or keys[pygame.K_UP]) and self.on_ground:
             self.velocity_y = self.jump_strength
@@ -335,8 +661,8 @@ class Player(pygame.sprite.Sprite):
             self.rect.bottom = landing_platform.rect.top
             self.velocity_y = 0
             self.on_ground = True
-        elif self.rect.bottom >= ROAD_TOP:
-            self.rect.bottom = ROAD_TOP
+        elif ground_y is not None and self.rect.bottom >= ground_y:
+            self.rect.bottom = ground_y
             self.velocity_y = 0
             self.on_ground = True
         else:
@@ -362,11 +688,36 @@ class Player(pygame.sprite.Sprite):
 
 
 class Platform:
-    def __init__(self, position_x, position_y, width):
+    def __init__(self, position_x, position_y, width, style="stone"):
         self.rect = pygame.Rect(position_x, position_y, width, 24)
+        self.style = style
 
     def draw(self, screen, camera_x):
         draw_rect = self.rect.move(-camera_x, 0)
+        if self.style == "invisible":
+            return
+        if self.style == "log":
+            bark_color = (96, 57, 30)
+            wood_color = (157, 98, 52)
+            cut_color = (207, 151, 84)
+            pygame.draw.rect(screen, bark_color, draw_rect, border_radius=11)
+            pygame.draw.rect(screen, wood_color, (draw_rect.x + 10, draw_rect.y + 2, draw_rect.width - 20, draw_rect.height - 4), border_radius=9)
+            pygame.draw.circle(screen, cut_color, draw_rect.midleft, 10)
+            pygame.draw.circle(screen, cut_color, draw_rect.midright, 10)
+            pygame.draw.circle(screen, (157, 105, 59), draw_rect.midleft, 4)
+            pygame.draw.circle(screen, (157, 105, 59), draw_rect.midright, 4)
+            for grain_x in range(draw_rect.x + 28, draw_rect.right - 20, 34):
+                pygame.draw.line(screen, (116, 68, 35), (grain_x, draw_rect.y + 6), (grain_x + 12, draw_rect.bottom - 6), 2)
+            return
+        if self.style == "car":
+            body_color = (184, 62, 55) if (self.rect.x // 100) % 2 else (48, 105, 169)
+            pygame.draw.rect(screen, (25, 30, 36), (draw_rect.x + 8, draw_rect.bottom - 6, draw_rect.width - 16, 12), border_radius=5)
+            pygame.draw.rect(screen, body_color, (draw_rect.x, draw_rect.y + 8, draw_rect.width, 20), border_radius=7)
+            pygame.draw.polygon(screen, body_color, [(draw_rect.x + 28, draw_rect.y + 8), (draw_rect.x + 46, draw_rect.y - 12), (draw_rect.right - 38, draw_rect.y - 12), (draw_rect.right - 18, draw_rect.y + 8)])
+            pygame.draw.polygon(screen, (145, 199, 220), [(draw_rect.x + 50, draw_rect.y + 5), (draw_rect.x + 58, draw_rect.y - 8), (draw_rect.centerx - 4, draw_rect.y - 8), (draw_rect.centerx - 4, draw_rect.y + 5)])
+            pygame.draw.circle(screen, (17, 21, 25), (draw_rect.x + 28, draw_rect.bottom), 9)
+            pygame.draw.circle(screen, (17, 21, 25), (draw_rect.right - 28, draw_rect.bottom), 9)
+            return
         pygame.draw.rect(screen, (105, 114, 121), draw_rect, border_radius=4)
         pygame.draw.rect(screen, (211, 220, 223), (draw_rect.x, draw_rect.y, draw_rect.width, 6), border_radius=3)
         pygame.draw.rect(screen, (73, 81, 87), (draw_rect.x + 8, draw_rect.bottom - 6, draw_rect.width - 16, 3))
@@ -399,6 +750,86 @@ class Resource:
             screen.blit(self.image, draw_rect)
 
 
+class SickApatosaurus:
+    def __init__(self):
+        self.rect = pygame.Rect(SICK_APATOSAURUS_X, ROAD_TOP - 168, 308, 195)
+        self.sleeping_image = self._load_image(SLEEPING_APATOSAURUS_IMAGE_PATH)
+        self.awake_image = self._load_image(AWAKE_APATOSAURUS_IMAGE_PATH)
+        self.healed = False
+
+    def _load_image(self, image_path):
+        image = pygame.image.load(image_path).convert_alpha()
+        return pygame.transform.smoothscale(image, self.rect.size)
+
+    def draw(self, screen, camera_x):
+        image = self.awake_image if self.healed else self.sleeping_image
+        screen.blit(image, self.rect.move(-camera_x, 0))
+
+
+class Velociraptor:
+    def __init__(self):
+        self.frames = self._load_frames()
+        self.left_frames = [pygame.transform.flip(frame, True, False) for frame in self.frames]
+        self.rect = pygame.Rect(NAFPAKTOS_CASTLE_X + 300, ROAD_TOP - 78, 121, 78)
+        self.speed = 155
+        self.animation_time = 0.0
+        self.awake = False
+        self.dead = False
+        self.hits = 0
+
+    @staticmethod
+    def _load_frames():
+        frames = []
+        for image_path in VELOCIRAPTOR_FRAME_PATHS:
+            image = pygame.image.load(image_path).convert_alpha()
+            target_height = 78
+            target_width = round(image.get_width() * target_height / image.get_height())
+            frames.append(pygame.transform.smoothscale(image, (target_width, target_height)))
+        return frames
+
+    def update(self, delta_time, player, camera_x):
+        if self.dead:
+            return
+        is_visible = self.rect.right >= camera_x and self.rect.left <= camera_x + WIDTH
+        self.awake = self.awake or is_visible
+        if self.awake:
+            if self.rect.centerx < player.rect.centerx:
+                self.rect.x += round(self.speed * delta_time)
+            elif self.rect.centerx > player.rect.centerx:
+                self.rect.x -= round(self.speed * delta_time)
+            self.animation_time += delta_time
+
+    def take_hit(self):
+        self.hits += 1
+        if self.hits >= 2:
+            self.dead = True
+
+    def draw(self, screen, camera_x, player_x):
+        if self.dead:
+            return
+        moving_left = self.rect.centerx > player_x
+        frames = self.left_frames if moving_left else self.frames
+        frame_index = int(self.animation_time * 8) % len(frames) if self.awake else 0
+        image_rect = frames[frame_index].get_rect(midbottom=(self.rect.centerx - camera_x, self.rect.bottom))
+        screen.blit(frames[frame_index], image_rect)
+
+
+class ThrownWeapon:
+    def __init__(self, position_x, position_y, moving_left):
+        image = pygame.image.load(WEAPON_IMAGE_PATH).convert_alpha()
+        target_height = 32
+        target_width = round(image.get_width() * target_height / image.get_height())
+        self.image = pygame.transform.smoothscale(image, (target_width, target_height))
+        self.rect = self.image.get_rect(center=(position_x, position_y))
+        self.speed = -620 if moving_left else 620
+
+    def update(self, delta_time):
+        self.rect.x += round(self.speed * delta_time)
+
+    def draw(self, screen, camera_x):
+        screen.blit(self.image, self.rect.move(-camera_x, 0))
+
+
 class Game:
     def __init__(self):
         pygame.init()
@@ -415,6 +846,11 @@ class Game:
         self.hud_font = pygame.font.Font(None, 32)
         self.hud_icons = self._load_hud_icons()
         self.camera_x = 0.0
+        self.velociraptor = None
+        self.sick_apatosaurus = None
+        self.dropped_supplies = []
+        self.thrown_weapons = []
+        self.show_world_menu = True
         self.running = True
 
     @staticmethod
@@ -431,14 +867,45 @@ class Game:
     @staticmethod
     def _create_nafpaktos_platforms():
         return [
-            Platform(680, ROAD_TOP - 80, 220),
-            Platform(1480, ROAD_TOP - 125, 250),
-            Platform(2350, ROAD_TOP - 95, 210),
-            Platform(3260, ROAD_TOP - 150, 230),
-            Platform(4180, ROAD_TOP - 105, 240),
-            Platform(5120, ROAD_TOP - 175, 280),
-            Platform(6080, ROAD_TOP - 90, 240),
+            Platform(520, ROAD_TOP - 80, 220),
+            Platform(1120, ROAD_TOP - 125, 250),
+            Platform(1740, ROAD_TOP - 95, 210),
+            Platform(2340, ROAD_TOP - 150, 230),
+            Platform(2780, ROAD_TOP - 105, 240),
         ]
+
+    @staticmethod
+    def _create_mountain_river_platforms():
+        return [
+            Platform(60, 455, 180, "log"),
+            Platform(360, 405, 175, "log"),
+            Platform(650, 355, 180, "log"),
+            Platform(955, 405, 180, "log"),
+            Platform(1260, 350, 180, "log"),
+            Platform(1560, 400, 180, "log"),
+            Platform(1860, 355, 180, "log"),
+            Platform(2160, 405, 180, "log"),
+            Platform(MOUNTAIN_RIVER_WORLD_WIDTH - 420, STONE_BRIDGE_DECK_Y, 420, "invisible"),
+        ]
+
+    @staticmethod
+    def _create_ferry_boat_platforms():
+        return [
+            Platform(70, 430, 185, "car"),
+            Platform(355, 375, 170, "car"),
+            Platform(650, 420, 185, "car"),
+            Platform(950, 360, 170, "car"),
+            Platform(1240, 415, 185, "car"),
+            Platform(1540, 365, 170, "car"),
+            Platform(1830, 420, 185, "car"),
+            Platform(2130, 365, 170, "car"),
+            Platform(2420, 420, 185, "car"),
+            Platform(2710, 365, 190, "car"),
+        ]
+
+    def _create_awake_apatosaurus_platform(self):
+        dinosaur = self.sick_apatosaurus
+        return Platform(dinosaur.rect.left + 26, dinosaur.rect.top + 60, dinosaur.rect.width - 48, "invisible")
 
     def _create_resources(self):
         resource_types = ["meat"] * RESOURCE_TARGETS["meat"]
@@ -493,6 +960,14 @@ class Game:
             complete_surface = self.hud_font.render("Η πίστα ολοκληρώθηκε!", True, (255, 245, 158))
             self.screen.blit(complete_surface, complete_surface.get_rect(center=(WIDTH // 2, 82)))
 
+        if self.level_name == "Nafpaktos" and self.velociraptor:
+            status = "Velociraptor defeated" if self.velociraptor.dead else f"Velociraptor: {2 - self.velociraptor.hits} hits"
+            status_surface = self.hud_font.render(status, True, (255, 245, 158))
+            self.screen.blit(status_surface, (18, 18))
+        elif self.level_name == "Mountain River":
+            level_surface = self.hud_font.render("Mountain River", True, (255, 255, 255))
+            self.screen.blit(level_surface, (18, 18))
+
     def update_camera(self):
         target_x = self.player.rect.centerx - WIDTH // 2
         self.camera_x = max(0, min(target_x, self.world_width - WIDTH))
@@ -504,6 +979,9 @@ class Game:
         self.platforms = self._create_nafpaktos_platforms()
         self.resources = []
         self.player = Player()
+        if self.velociraptor is None:
+            self.velociraptor = Velociraptor()
+        self.thrown_weapons = []
         self.camera_x = 0.0
 
     def _return_to_bridge_level(self):
@@ -513,14 +991,187 @@ class Game:
         self.platforms = self._create_bridge_platforms()
         self.player = Player()
         self.player.rect.centerx = BRIDGE_WORLD_WIDTH - 300
+        self.thrown_weapons = []
         self.camera_x = BRIDGE_WORLD_WIDTH - WIDTH
+
+    def _start_mountain_river_level(self):
+        self.level_name = "Mountain River"
+        self.world_width = MOUNTAIN_RIVER_WORLD_WIDTH
+        self.background = MountainRiverBackground()
+        self.platforms = self._create_mountain_river_platforms()
+        self.resources = []
+        self.player = Player()
+        if self.sick_apatosaurus is None:
+            self.sick_apatosaurus = SickApatosaurus()
+        elif self.sick_apatosaurus.healed:
+            self.platforms.append(self._create_awake_apatosaurus_platform())
+        self._reset_mountain_river_player()
+        self.dropped_supplies = []
+        self.thrown_weapons = []
+        self.camera_x = 0.0
+
+    def _start_ferry_boat_level(self):
+        self.level_name = "FerryBoat"
+        self.world_width = FERRY_BOAT_WORLD_WIDTH
+        self.background = FerryBoatBackground()
+        self.platforms = self._create_ferry_boat_platforms()
+        self.resources = []
+        self.player = Player()
+        self._reset_ferry_boat_player()
+        self.dropped_supplies = []
+        self.thrown_weapons = []
+        self.camera_x = 0.0
+
+    def _feed_sick_apatosaurus(self):
+        dinosaur = self.sick_apatosaurus
+        is_close = dinosaur and self.player.rect.right >= dinosaur.rect.left - 120
+        has_supplies = self.collected["meat"] >= 2 and self.collected["water"] >= 2
+        if self.level_name != "Mountain River" or not is_close or dinosaur.healed or not has_supplies:
+            return
+
+        self.collected["meat"] -= 2
+        self.collected["water"] -= 2
+        supply_types = ("meat", "water", "meat", "water")
+        supply_x = dinosaur.rect.left - 190
+        self.dropped_supplies = [
+            Resource(resource_type, supply_x + index * 48)
+            for index, resource_type in enumerate(supply_types)
+        ]
+        dinosaur.healed = True
+        self.platforms.append(self._create_awake_apatosaurus_platform())
+
+    def _resolve_sick_apatosaurus_blocker(self):
+        dinosaur = self.sick_apatosaurus
+        if self.level_name != "Mountain River" or not dinosaur or dinosaur.healed:
+            return
+        if self.player.rect.right > dinosaur.rect.left and self.player.rect.centerx < dinosaur.rect.centerx:
+            self.player.rect.right = dinosaur.rect.left
+
+    def _resolve_rocky_barrier(self):
+        if self.level_name != "Mountain River":
+            return
+        can_clear_barrier = self.player.rect.bottom <= STONE_BRIDGE_DECK_Y + 35
+        is_crossing_from_left = self.player.rect.centerx < ROCKY_BARRIER_X + 75
+        if self.player.rect.right > ROCKY_BARRIER_X and is_crossing_from_left and not can_clear_barrier:
+            self.player.rect.right = ROCKY_BARRIER_X
+
+    def _reset_mountain_river_player(self):
+        starting_log = self.platforms[0]
+        self.player.rect.centerx = starting_log.rect.centerx
+        self.player.rect.bottom = starting_log.rect.top
+        self.player.velocity_y = 0
+        self.player.on_ground = True
+
+    def _handle_mountain_river_water(self):
+        if self.level_name == "Mountain River" and self.player.rect.top > HEIGHT:
+            self._reset_mountain_river_player()
+
+    def _reset_ferry_boat_player(self):
+        starting_car = self.platforms[0]
+        self.player.rect.centerx = starting_car.rect.centerx
+        self.player.rect.bottom = starting_car.rect.top
+        self.player.velocity_y = 0
+        self.player.on_ground = True
+
+    def _handle_ferry_boat_water(self):
+        if self.level_name == "FerryBoat" and self.player.rect.top > HEIGHT:
+            self._reset_ferry_boat_player()
+
+    def _update_ferry_storm(self):
+        is_near_exit = self.player.rect.right >= FERRY_BOAT_WORLD_WIDTH - 520
+        if self.level_name == "FerryBoat" and is_near_exit:
+            self.background.start_storm()
+
+    def _update_lochness_animation(self):
+        if self.level_name != "Mountain River":
+            return
+        if not self.background.lochness_completed and self.player.rect.right >= MOUNTAIN_RIVER_WORLD_WIDTH - 420:
+            self.background.lochness_visible = True
+
+    def _throw_weapon(self):
+        if self.level_name != "Nafpaktos" or self.collected["weapon"] <= 0:
+            return
+        self.collected["weapon"] -= 1
+        self.thrown_weapons.append(
+            ThrownWeapon(self.player.rect.centerx, self.player.rect.centery, self.player.facing_left)
+        )
+
+    def _update_combat(self, delta_time):
+        if self.level_name != "Nafpaktos" or not self.velociraptor:
+            return
+        self.velociraptor.update(delta_time, self.player, self.camera_x)
+        for thrown_weapon in self.thrown_weapons[:]:
+            thrown_weapon.update(delta_time)
+            if thrown_weapon.rect.colliderect(self.velociraptor.rect) and not self.velociraptor.dead:
+                self.velociraptor.take_hit()
+                self.thrown_weapons.remove(thrown_weapon)
+            elif thrown_weapon.rect.right < 0 or thrown_weapon.rect.left > self.world_width:
+                self.thrown_weapons.remove(thrown_weapon)
 
     def _check_level_transition(self):
         has_reached_nafpaktos_sign = self.player.rect.right >= BRIDGE_WORLD_WIDTH - 160
+        has_reached_kravara_sign = self.player.rect.right >= NAFPAKTOS_WORLD_WIDTH - 160
+        has_reached_antirrio_sign = self.player.rect.right >= MOUNTAIN_RIVER_WORLD_WIDTH - 150
         if self.level_name == "Rio–Antirrio Bridge" and not self.resources and has_reached_nafpaktos_sign:
             self._start_nafpaktos_level()
         elif self.level_name == "Nafpaktos" and self.player.rect.left <= 0:
             self._return_to_bridge_level()
+        elif self.level_name == "Nafpaktos" and self.velociraptor and self.velociraptor.dead and has_reached_kravara_sign:
+            self._start_mountain_river_level()
+        elif self.level_name == "Mountain River" and has_reached_antirrio_sign:
+            self._start_ferry_boat_level()
+
+    @staticmethod
+    def _world_menu_buttons():
+        return [
+            (pygame.Rect(390, 220, 420, 64), "Rio–Antirrio Bridge"),
+            (pygame.Rect(390, 300, 420, 64), "Nafpaktos"),
+            (pygame.Rect(390, 380, 420, 64), "Mountain River"),
+            (pygame.Rect(390, 460, 420, 64), "FerryBoat"),
+        ]
+
+    def _start_selected_world(self, index):
+        if index == 0:
+            self.level_name = "Rio–Antirrio Bridge"
+            self.world_width = BRIDGE_WORLD_WIDTH
+            self.background = BridgeBackground()
+            self.platforms = self._create_bridge_platforms()
+            self.player = Player()
+            self.camera_x = 0.0
+        elif index == 1:
+            self._start_nafpaktos_level()
+        elif index == 2:
+            self._start_mountain_river_level()
+        elif index == 3:
+            self._start_ferry_boat_level()
+        else:
+            return
+        if index in (1, 2, 3):
+            self.collected = RESOURCE_TARGETS.copy()
+        self.show_world_menu = False
+
+    def _handle_world_menu_event(self, event):
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+            self._start_selected_world(event.key - pygame.K_1)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for index, (button_rect, _) in enumerate(self._world_menu_buttons()):
+                if button_rect.collidepoint(event.pos):
+                    self._start_selected_world(index)
+                    break
+
+    def _draw_world_menu(self):
+        self.screen.fill((31, 70, 88))
+        title_font = pygame.font.Font(None, 58)
+        subtitle_font = pygame.font.Font(None, 30)
+        title = title_font.render("Development World Select", True, (255, 245, 200))
+        subtitle = subtitle_font.render("Choose a world to launch", True, (225, 239, 244))
+        self.screen.blit(title, title.get_rect(center=(WIDTH // 2, 125)))
+        self.screen.blit(subtitle, subtitle.get_rect(center=(WIDTH // 2, 174)))
+        for index, (button_rect, label) in enumerate(self._world_menu_buttons(), start=1):
+            pygame.draw.rect(self.screen, (24, 104, 145), button_rect, border_radius=12)
+            pygame.draw.rect(self.screen, (225, 240, 246), button_rect, 3, border_radius=12)
+            button_text = subtitle_font.render(f"{index}. {label}", True, (255, 255, 255))
+            self.screen.blit(button_text, button_text.get_rect(center=button_rect.center))
 
     def run(self):
         while self.running:
@@ -528,19 +1179,46 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif self.show_world_menu:
+                    self._handle_world_menu_event(event)
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_LCTRL:
+                    self._throw_weapon()
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_LSHIFT:
+                    self._feed_sick_apatosaurus()
+
+            if self.show_world_menu:
+                self._draw_world_menu()
+                pygame.display.flip()
+                continue
 
             keys = pygame.key.get_pressed()
-            self.player.update(delta_time, keys, True, self.platforms, self.world_width)
+            ground_y = None if self.level_name in ("Mountain River", "FerryBoat") else ROAD_TOP
+            self.player.update(delta_time, keys, True, self.platforms, self.world_width, ground_y)
+            self._handle_mountain_river_water()
+            self._handle_ferry_boat_water()
+            self._update_ferry_storm()
+            self._resolve_sick_apatosaurus_blocker()
+            self._resolve_rocky_barrier()
+            self._update_lochness_animation()
             self._collect_resources()
             self._check_level_transition()
             self.update_camera()
             self.background.update(delta_time)
+            self._update_combat(delta_time)
 
             self.background.draw(self.screen, self.camera_x)
             for platform in self.platforms:
                 platform.draw(self.screen, self.camera_x)
             for resource in self.resources:
                 resource.draw(self.screen, self.camera_x)
+            for supply in self.dropped_supplies:
+                supply.draw(self.screen, self.camera_x)
+            for thrown_weapon in self.thrown_weapons:
+                thrown_weapon.draw(self.screen, self.camera_x)
+            if self.level_name == "Nafpaktos" and self.velociraptor:
+                self.velociraptor.draw(self.screen, self.camera_x, self.player.rect.centerx)
+            if self.level_name == "Mountain River" and self.sick_apatosaurus:
+                self.sick_apatosaurus.draw(self.screen, self.camera_x)
             self.player.draw(self.screen, self.camera_x)
             self._draw_hud()
             pygame.display.flip()
