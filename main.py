@@ -10,6 +10,9 @@ NAFPAKTOS_WORLD_WIDTH = BRIDGE_WORLD_WIDTH
 NAFPAKTOS_CASTLE_X = NAFPAKTOS_WORLD_WIDTH - 540 - 180
 MOUNTAIN_RIVER_WORLD_WIDTH = 3000
 FERRY_BOAT_WORLD_WIDTH = 3000
+PATRAS_CITY_WORLD_WIDTH = 3300
+SCHOOL_WORLD_WIDTH = 2000
+CLASSROOM_WORLD_WIDTH = 1500
 SICK_APATOSAURUS_X = MOUNTAIN_RIVER_WORLD_WIDTH - 580
 ROCKY_BARRIER_X = SICK_APATOSAURUS_X + 308
 STONE_BRIDGE_DECK_Y = 272
@@ -26,6 +29,7 @@ CROUCH_FRAME_PATH = Path(__file__).with_name("couching.png")
 MEAT_IMAGE_PATH = Path(__file__).with_name("meat.png")
 BOTTLE_IMAGE_PATH = Path(__file__).with_name("bottle.png")
 WEAPON_IMAGE_PATH = Path(__file__).with_name("weapon.png")
+HEART_IMAGE_PATH = Path(__file__).with_name("heart.png")
 SLEEPING_APATOSAURUS_IMAGE_PATH = Path(__file__).with_name("apatosaurousSleeping.png")
 AWAKE_APATOSAURUS_IMAGE_PATH = Path(__file__).with_name("apatosaurousUp.png")
 LOCHNESS_IMAGE_PATH = Path(__file__).with_name("lochness.png")
@@ -40,7 +44,9 @@ RESOURCE_IMAGE_PATHS = {
     "meat": MEAT_IMAGE_PATH,
     "water": BOTTLE_IMAGE_PATH,
     "weapon": WEAPON_IMAGE_PATH,
+    "heart": HEART_IMAGE_PATH,
 }
+MAX_HEALTH = 3
 
 
 class BridgeBackground:
@@ -584,8 +590,209 @@ class FerryBoatBackground:
         sign_x = FERRY_BOAT_WORLD_WIDTH - 190 - camera_x
         pygame.draw.rect(screen, (29, 124, 83), (sign_x, 150, 160, 54), border_radius=6)
         pygame.draw.rect(screen, (225, 244, 235), (sign_x, 150, 160, 54), 3, border_radius=6)
-        label = self.sign_font.render("EXIT", True, (255, 255, 255))
+        label = self.sign_font.render("ΕΞΟΔΟΣ", True, (255, 255, 255))
         screen.blit(label, label.get_rect(center=(sign_x + 80, 177)))
+
+
+class PatrasCityBackground:
+    def __init__(self):
+        self.rain_offset = 0.0
+        self.sunrise_progress = 0.0
+        self.sunrise_started = False
+        self.title_font = pygame.font.Font(None, 30)
+
+    def start_sunrise(self):
+        self.sunrise_started = True
+
+    def update(self, delta_time):
+        if self.sunrise_started:
+            self.sunrise_progress = min(1.0, self.sunrise_progress + delta_time / 7)
+        else:
+            self.rain_offset = (self.rain_offset + 360 * delta_time) % 42
+
+    def draw(self, screen, camera_x):
+        progress = self.sunrise_progress
+        sky_color = tuple(round(night + (sunrise - night) * progress) for night, sunrise in zip((8, 16, 35), (239, 174, 112)))
+        screen.fill(sky_color)
+        self._draw_city_silhouette(screen, camera_x, progress)
+        self._draw_church(screen, camera_x)
+        self._draw_bench(screen, camera_x)
+        if not self.sunrise_started:
+            self._draw_rain(screen)
+        elif progress > 0.2:
+            self._draw_sunrise(screen, progress)
+
+    def _draw_city_silhouette(self, screen, camera_x, progress):
+        ground_color = (46 + round(65 * progress), 53 + round(31 * progress), 67 + round(12 * progress))
+        pygame.draw.rect(screen, ground_color, (0, 490, WIDTH, HEIGHT - 490))
+        first_building_x = int(camera_x // 250) * 250 - 250
+        for world_x in range(first_building_x, int(camera_x + WIDTH + 250), 250):
+            position_x = world_x - camera_x
+            building_height = 110 + (world_x // 250 % 3) * 35
+            pygame.draw.rect(screen, (28, 35, 50), (position_x, 490 - building_height, 190, building_height))
+            for window_y in range(490 - building_height + 18, 475, 30):
+                pygame.draw.rect(screen, (220, 177, 99), (position_x + 25, window_y, 16, 10))
+                pygame.draw.rect(screen, (220, 177, 99), (position_x + 88, window_y, 16, 10))
+
+    def _draw_church(self, screen, camera_x):
+        church_x = 45 - camera_x
+        pygame.draw.rect(screen, (230, 228, 215), (church_x, 322, 155, 168))
+        pygame.draw.polygon(screen, (195, 91, 78), [(church_x - 12, 322), (church_x + 77, 245), (church_x + 167, 322)])
+        pygame.draw.rect(screen, (232, 231, 221), (church_x + 105, 275, 40, 215))
+        pygame.draw.polygon(screen, (185, 82, 72), [(church_x + 99, 275), (church_x + 125, 225), (church_x + 151, 275)])
+        pygame.draw.line(screen, (41, 48, 55), (church_x + 125, 215), (church_x + 125, 244), 4)
+        pygame.draw.line(screen, (41, 48, 55), (church_x + 116, 228), (church_x + 134, 228), 4)
+        pygame.draw.rect(screen, (88, 66, 54), (church_x + 56, 420, 42, 70), border_radius=20)
+        pygame.draw.circle(screen, (127, 172, 200), (church_x + 37, 368), 14)
+        pygame.draw.circle(screen, (127, 172, 200), (church_x + 116, 368), 14)
+
+    def _draw_bench(self, screen, camera_x):
+        bench_x = PATRAS_CITY_WORLD_WIDTH - 520 - camera_x
+        pygame.draw.rect(screen, (101, 62, 38), (bench_x, 65, 154, 12), border_radius=3)
+        pygame.draw.rect(screen, (119, 73, 42), (bench_x, 94, 154, 13), border_radius=3)
+        pygame.draw.rect(screen, (61, 46, 38), (bench_x + 19, 105, 10, 38))
+        pygame.draw.rect(screen, (61, 46, 38), (bench_x + 125, 105, 10, 38))
+        label = self.title_font.render("Ξεκουράσου εδώ  [Shift]", True, (255, 240, 193))
+        screen.blit(label, label.get_rect(center=(bench_x + 77, 38)))
+
+    def _draw_rain(self, screen):
+        for rain_x in range(-20, WIDTH + 30, 26):
+            start_y = (rain_x * 9 + self.rain_offset) % 120 - 20
+            for rain_y in range(int(start_y), HEIGHT, 120):
+                pygame.draw.line(screen, (133, 177, 204), (rain_x, rain_y), (rain_x - 7, rain_y + 18), 2)
+
+    def _draw_sunrise(self, screen, progress):
+        sun_radius = round(20 + 34 * progress)
+        pygame.draw.circle(screen, (255, 220, 131), (WIDTH - 160, 170), sun_radius)
+        caption = self.title_font.render("Ανατολή πάνω από την Πάτρα", True, (255, 247, 215))
+        screen.blit(caption, caption.get_rect(center=(WIDTH // 2, 78)))
+
+
+class SchoolBackground:
+    def __init__(self):
+        self.title_font = pygame.font.Font(None, 34)
+
+    def update(self, delta_time):
+        pass
+
+    def draw(self, screen, camera_x):
+        screen.fill((126, 196, 232))
+        self._draw_clouds(screen)
+        self._draw_hills(screen, camera_x)
+        pygame.draw.rect(screen, (216, 197, 153), (0, 385, WIDTH, HEIGHT - 385))
+        self._draw_courts(screen, camera_x)
+        self._draw_olive_trees(screen, camera_x)
+        self._draw_school_building(screen, camera_x)
+        self._draw_fence(screen, camera_x)
+        title = self.title_font.render("49ο Δημοτικό", True, (255, 255, 255))
+        screen.blit(title, title.get_rect(center=(WIDTH // 2, 54)))
+
+    @staticmethod
+    def _draw_clouds(screen):
+        for cloud_x, cloud_y in ((110, 90), (430, 145), (790, 75), (1040, 135)):
+            pygame.draw.ellipse(screen, (245, 250, 253), (cloud_x, cloud_y, 115, 32))
+            pygame.draw.circle(screen, (245, 250, 253), (cloud_x + 38, cloud_y + 18), 22)
+            pygame.draw.circle(screen, (245, 250, 253), (cloud_x + 72, cloud_y + 13), 26)
+
+    def _draw_hills(self, screen, camera_x):
+        first_hill_x = int(camera_x // 600) * 600 - 600
+        for world_x in range(first_hill_x, int(camera_x + WIDTH + 600), 600):
+            position_x = world_x - camera_x
+            pygame.draw.polygon(screen, (112, 157, 134), [(position_x, 385), (position_x + 280, 210), (position_x + 620, 385)])
+
+    def _draw_school_building(self, screen, camera_x):
+        for world_x in range(900, SCHOOL_WORLD_WIDTH, 1050):
+            position_x = world_x - camera_x
+            pygame.draw.rect(screen, (235, 224, 194), (position_x, 195, 410, 190))
+            pygame.draw.rect(screen, (197, 82, 67), (position_x - 14, 180, 438, 22))
+            pygame.draw.rect(screen, (83, 125, 149), (position_x + 170, 300, 62, 85))
+            for window_x in range(int(position_x + 35), int(position_x + 380), 72):
+                pygame.draw.rect(screen, (104, 163, 193), (window_x, 238, 38, 36))
+                pygame.draw.rect(screen, (240, 248, 247), (window_x, 238, 38, 36), 2)
+
+    def _draw_courts(self, screen, camera_x):
+        for world_x in range(280, SCHOOL_WORLD_WIDTH, 900):
+            position_x = world_x - camera_x
+            court_rect = pygame.Rect(position_x, 402, 520, 150)
+            pygame.draw.rect(screen, (195, 113, 72), court_rect, border_radius=5)
+            pygame.draw.rect(screen, (247, 239, 208), court_rect, 3, border_radius=5)
+            pygame.draw.line(screen, (247, 239, 208), (position_x + 260, 402), (position_x + 260, 552), 3)
+            pygame.draw.circle(screen, (247, 239, 208), (position_x + 260, 477), 44, 3)
+            hoop_x = position_x + 465
+            pygame.draw.line(screen, (94, 96, 98), (hoop_x, 402), (hoop_x, 300), 6)
+            pygame.draw.rect(screen, (238, 243, 245), (hoop_x - 46, 300, 52, 38), 3)
+            pygame.draw.circle(screen, (222, 81, 48), (hoop_x - 20, 345), 13, 3)
+
+    def _draw_olive_trees(self, screen, camera_x):
+        for world_x in range(100, SCHOOL_WORLD_WIDTH, 430):
+            position_x = world_x - camera_x
+            pygame.draw.rect(screen, (100, 77, 48), (position_x - 7, 300, 14, 100))
+            for canopy_x, canopy_y, radius in ((-28, 320, 27), (0, 292, 34), (30, 322, 29)):
+                pygame.draw.circle(screen, (78, 127, 72), (position_x + canopy_x, canopy_y), radius)
+            for olive_x, olive_y in ((-15, 310), (12, 325), (24, 295), (-2, 340)):
+                pygame.draw.circle(screen, (94, 103, 62), (position_x + olive_x, olive_y), 4)
+
+    def _draw_fence(self, screen, camera_x):
+        colors = ((222, 83, 66), (245, 193, 59), (54, 145, 193), (83, 165, 89), (168, 84, 164))
+        first_pole_x = int(camera_x // 28) * 28 - 28
+        for pole_index, world_x in enumerate(range(first_pole_x, int(camera_x + WIDTH + 28), 28)):
+            position_x = world_x - camera_x
+            pygame.draw.rect(screen, colors[pole_index % len(colors)], (position_x, 355, 7, 130), border_radius=3)
+        pygame.draw.line(screen, (89, 99, 108), (0, 360), (WIDTH, 360), 4)
+        pygame.draw.line(screen, (89, 99, 108), (0, 478), (WIDTH, 478), 4)
+
+
+class ClassroomBackground:
+    DESKS = ((150, 415), (360, 400), (570, 415), (760, 400))
+
+    def __init__(self):
+        self.title_font = pygame.font.Font(None, 38)
+
+    def update(self, delta_time):
+        pass
+
+    def draw(self, screen, camera_x):
+        screen.fill((239, 227, 192))
+        pygame.draw.rect(screen, (189, 157, 112), (0, 460, WIDTH, HEIGHT - 460))
+        self._draw_windows(screen, camera_x)
+        self._draw_board(screen, camera_x)
+        self._draw_desks(screen, camera_x)
+        self._draw_classroom_details(screen, camera_x)
+        title = self.title_font.render("Β1 τάξη", True, (73, 67, 55))
+        screen.blit(title, title.get_rect(center=(WIDTH // 2, 42)))
+
+    def _draw_windows(self, screen, camera_x):
+        for world_x in range(60, CLASSROOM_WORLD_WIDTH, 230):
+            position_x = world_x - camera_x
+            pygame.draw.rect(screen, (111, 174, 205), (position_x, 105, 132, 135))
+            pygame.draw.rect(screen, (250, 250, 240), (position_x, 105, 132, 135), 7)
+            pygame.draw.line(screen, (250, 250, 240), (position_x + 66, 108), (position_x + 66, 237), 5)
+            pygame.draw.line(screen, (250, 250, 240), (position_x + 4, 172), (position_x + 128, 172), 5)
+
+    def _draw_board(self, screen, camera_x):
+        board_x = 660 - camera_x
+        pygame.draw.rect(screen, (78, 117, 82), (board_x, 100, 260, 155), border_radius=5)
+        pygame.draw.rect(screen, (116, 76, 47), (board_x - 8, 92, 276, 171), 9, border_radius=6)
+        pygame.draw.line(screen, (239, 239, 211), (board_x + 30, 145), (board_x + 190, 145), 3)
+        pygame.draw.line(screen, (239, 239, 211), (board_x + 65, 185), (board_x + 220, 185), 3)
+
+    def _draw_desks(self, screen, camera_x):
+        for world_x, row_y in self.DESKS:
+            position_x = world_x - camera_x
+            pygame.draw.rect(screen, (171, 113, 65), (position_x, row_y, 115, 20), border_radius=4)
+            pygame.draw.rect(screen, (91, 64, 44), (position_x + 12, row_y + 20, 8, 42))
+            pygame.draw.rect(screen, (91, 64, 44), (position_x + 94, row_y + 20, 8, 42))
+            pygame.draw.rect(screen, (97, 139, 175), (position_x + 34, row_y + 33, 48, 23), border_radius=4)
+
+    def _draw_classroom_details(self, screen, camera_x):
+        clock_x = 510 - camera_x
+        pygame.draw.circle(screen, (248, 245, 227), (clock_x, 82), 25)
+        pygame.draw.circle(screen, (73, 67, 55), (clock_x, 82), 25, 3)
+        pygame.draw.line(screen, (73, 67, 55), (clock_x, 82), (clock_x, 67), 3)
+        pygame.draw.line(screen, (73, 67, 55), (clock_x, 82), (clock_x + 11, 89), 3)
+        for world_x in (40, 940):
+            position_x = world_x - camera_x
+            pygame.draw.rect(screen, (202, 84, 66), (position_x, 145, 20, 315))
 
 
 class Player(pygame.sprite.Sprite):
@@ -597,6 +804,7 @@ class Player(pygame.sprite.Sprite):
         self.jump_strength = -690
         self.move_speed = 330
         self.ducking = False
+        self.resting = False
         self.on_ground = True
         self.is_moving = False
         self.facing_left = False
@@ -621,7 +829,7 @@ class Player(pygame.sprite.Sprite):
         return frames
 
     def update(self, delta_time, keys, active, platforms, world_width, ground_y=ROAD_TOP):
-        if not active:
+        if not active or self.resting:
             return
         self.ducking = bool(keys[pygame.K_DOWN]) and self.on_ground
         self.is_moving = bool(keys[pygame.K_LEFT] or keys[pygame.K_RIGHT])
@@ -672,7 +880,7 @@ class Player(pygame.sprite.Sprite):
             self.animation_time += delta_time
 
     def draw(self, screen, camera_x):
-        if self.ducking:
+        if self.ducking or self.resting:
             image = self.left_crouch_frame if self.facing_left else self.crouch_frame
             image_rect = image.get_rect(midbottom=(self.rect.centerx - camera_x, self.rect.bottom))
             screen.blit(image, image_rect)
@@ -767,10 +975,10 @@ class SickApatosaurus:
 
 
 class Velociraptor:
-    def __init__(self):
+    def __init__(self, position_x=NAFPAKTOS_CASTLE_X + 300):
         self.frames = self._load_frames()
         self.left_frames = [pygame.transform.flip(frame, True, False) for frame in self.frames]
-        self.rect = pygame.Rect(NAFPAKTOS_CASTLE_X + 300, ROAD_TOP - 78, 121, 78)
+        self.rect = pygame.Rect(position_x, ROAD_TOP - 78, 121, 78)
         self.speed = 155
         self.animation_time = 0.0
         self.awake = False
@@ -834,7 +1042,7 @@ class Game:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("T-Rex on the Rio-Antirrio Bridge")
+        pygame.display.set_caption("T-Rex στη Γέφυρα Ρίου–Αντιρρίου")
         self.clock = pygame.time.Clock()
         self.background = BridgeBackground()
         self.player = Player()
@@ -843,6 +1051,8 @@ class Game:
         self.platforms = self._create_bridge_platforms()
         self.resources = self._create_resources()
         self.collected = {resource_type: 0 for resource_type in RESOURCE_TARGETS}
+        self.health = MAX_HEALTH
+        self.enemy_hit_cooldown = 0.0
         self.hud_font = pygame.font.Font(None, 32)
         self.hud_icons = self._load_hud_icons()
         self.camera_x = 0.0
@@ -851,6 +1061,7 @@ class Game:
         self.dropped_supplies = []
         self.thrown_weapons = []
         self.show_world_menu = True
+        self.show_game_over = False
         self.running = True
 
     @staticmethod
@@ -903,6 +1114,33 @@ class Game:
             Platform(2710, 365, 190, "car"),
         ]
 
+    @staticmethod
+    def _create_patras_city_platforms():
+        platforms = [Platform(0, ROAD_TOP, 220, "invisible")]
+        for step_index in range(19):
+            platforms.append(Platform(220 + step_index * 125, 455 - step_index * 20, 145))
+        platforms.append(Platform(PATRAS_CITY_WORLD_WIDTH - 800, 115, 450, "invisible"))
+        return platforms
+
+    @staticmethod
+    def _create_school_platforms():
+        return [
+            Platform(530, 402, 150),
+            Platform(1430, 402, 150),
+        ]
+
+    @staticmethod
+    def _create_classroom_platforms():
+        return [
+            Platform(position_x, position_y, 115, "invisible")
+            for position_x, position_y in ClassroomBackground.DESKS
+        ]
+
+    @staticmethod
+    def _create_school_weapons():
+        weapon_positions = random.sample(range(400, SCHOOL_WORLD_WIDTH - 300, 400), 3)
+        return [Resource("weapon", position_x) for position_x in weapon_positions]
+
     def _create_awake_apatosaurus_platform(self):
         dinosaur = self.sick_apatosaurus
         return Platform(dinosaur.rect.left + 26, dinosaur.rect.top + 60, dinosaur.rect.width - 48, "invisible")
@@ -943,7 +1181,7 @@ class Game:
                 self.resources.remove(resource)
 
     def _draw_hud(self):
-        panel = pygame.Surface((155, 120), pygame.SRCALPHA)
+        panel = pygame.Surface((155, 157), pygame.SRCALPHA)
         panel.fill((16, 27, 36, 185))
         panel_x = WIDTH - panel.get_width() - 18
         panel_y = 18
@@ -956,16 +1194,34 @@ class Game:
             counter_surface = self.hud_font.render(f"{self.collected[resource_type]}/{target}", True, (255, 255, 255))
             self.screen.blit(counter_surface, (panel_x + 70, row_y))
 
+        heart_row_y = panel_y + 10 + len(RESOURCE_TARGETS) * 37
+        heart_icon = self.hud_icons["heart"]
+        heart_rect = heart_icon.get_rect(midleft=(panel_x + 14, heart_row_y + 13))
+        self.screen.blit(heart_icon, heart_rect)
+        health_surface = self.hud_font.render(f"{self.health}/{MAX_HEALTH}", True, (255, 255, 255))
+        self.screen.blit(health_surface, (panel_x + 70, heart_row_y))
+
         if self.level_name == "Rio–Antirrio Bridge" and not self.resources:
             complete_surface = self.hud_font.render("Η πίστα ολοκληρώθηκε!", True, (255, 245, 158))
             self.screen.blit(complete_surface, complete_surface.get_rect(center=(WIDTH // 2, 82)))
 
         if self.level_name == "Nafpaktos" and self.velociraptor:
-            status = "Velociraptor defeated" if self.velociraptor.dead else f"Velociraptor: {2 - self.velociraptor.hits} hits"
+            status = "Νίκησες τον Βελοσιράπτορα" if self.velociraptor.dead else f"Βελοσιράπτορας: {2 - self.velociraptor.hits} χτυπήματα"
             status_surface = self.hud_font.render(status, True, (255, 245, 158))
             self.screen.blit(status_surface, (18, 18))
         elif self.level_name == "Mountain River":
-            level_surface = self.hud_font.render("Mountain River", True, (255, 255, 255))
+            level_surface = self.hud_font.render("Ορεινό Ποτάμι", True, (255, 255, 255))
+            self.screen.blit(level_surface, (18, 18))
+        elif self.level_name == "Patras City":
+            status = "Ανατολή πάνω από την Πάτρα" if self.background.sunrise_started else "Ανέβα τα σκαλιά της Αγίου Νικολάου"
+            level_surface = self.hud_font.render(status, True, (255, 245, 193))
+            self.screen.blit(level_surface, (18, 18))
+        elif self.level_name == "49ο Δημοτικό":
+            level_surface = self.hud_font.render("Αυλή του 49ου Δημοτικού", True, (255, 255, 255))
+            self.screen.blit(level_surface, (18, 18))
+        elif self.level_name == "Β1 τάξη" and self.velociraptor:
+            status = "Νίκησες τον Βελοσιράπτορα" if self.velociraptor.dead else f"Βελοσιράπτορας: {2 - self.velociraptor.hits} χτυπήματα"
+            level_surface = self.hud_font.render(status, True, (255, 245, 158))
             self.screen.blit(level_surface, (18, 18))
 
     def update_camera(self):
@@ -1022,6 +1278,40 @@ class Game:
         self.thrown_weapons = []
         self.camera_x = 0.0
 
+    def _start_patras_city_level(self):
+        self.level_name = "Patras City"
+        self.world_width = PATRAS_CITY_WORLD_WIDTH
+        self.background = PatrasCityBackground()
+        self.platforms = self._create_patras_city_platforms()
+        self.resources = []
+        self.player = Player()
+        self._reset_patras_city_player()
+        self.dropped_supplies = []
+        self.thrown_weapons = []
+        self.camera_x = 0.0
+
+    def _start_school_level(self):
+        self.level_name = "49ο Δημοτικό"
+        self.world_width = SCHOOL_WORLD_WIDTH
+        self.background = SchoolBackground()
+        self.platforms = self._create_school_platforms()
+        self.resources = self._create_school_weapons()
+        self.player = Player()
+        self.dropped_supplies = []
+        self.thrown_weapons = []
+        self.camera_x = 0.0
+
+    def _start_classroom_level(self):
+        self.level_name = "Β1 τάξη"
+        self.world_width = CLASSROOM_WORLD_WIDTH
+        self.background = ClassroomBackground()
+        self.platforms = self._create_classroom_platforms()
+        self.resources = []
+        self.player = Player()
+        self.velociraptor = Velociraptor(CLASSROOM_WORLD_WIDTH - 230)
+        self.thrown_weapons = []
+        self.camera_x = 0.0
+
     def _feed_sick_apatosaurus(self):
         dinosaur = self.sick_apatosaurus
         is_close = dinosaur and self.player.rect.right >= dinosaur.rect.left - 120
@@ -1055,6 +1345,19 @@ class Game:
         if self.player.rect.right > ROCKY_BARRIER_X and is_crossing_from_left and not can_clear_barrier:
             self.player.rect.right = ROCKY_BARRIER_X
 
+    def _resolve_classroom_desks(self, previous_player_rect):
+        if self.level_name != "Β1 τάξη" or self.player.ducking:
+            return
+        for desk in self.platforms:
+            is_at_desk_height = self.player.rect.bottom > desk.rect.top + 10
+            overlaps_desk = self.player.rect.colliderect(desk.rect)
+            if not is_at_desk_height or not overlaps_desk:
+                continue
+            if previous_player_rect.right <= desk.rect.left:
+                self.player.rect.right = desk.rect.left
+            elif previous_player_rect.left >= desk.rect.right:
+                self.player.rect.left = desk.rect.right
+
     def _reset_mountain_river_player(self):
         starting_log = self.platforms[0]
         self.player.rect.centerx = starting_log.rect.centerx
@@ -1077,10 +1380,34 @@ class Game:
         if self.level_name == "FerryBoat" and self.player.rect.top > HEIGHT:
             self._reset_ferry_boat_player()
 
+    def _reset_patras_city_player(self):
+        starting_platform = self.platforms[0]
+        self.player.rect.centerx = starting_platform.rect.centerx
+        self.player.rect.bottom = starting_platform.rect.top
+        self.player.velocity_y = 0
+        self.player.on_ground = True
+
+    def _handle_patras_city_fall(self):
+        if self.level_name == "Patras City" and self.player.rect.top > HEIGHT:
+            self._reset_patras_city_player()
+
     def _update_ferry_storm(self):
         is_near_exit = self.player.rect.right >= FERRY_BOAT_WORLD_WIDTH - 520
         if self.level_name == "FerryBoat" and is_near_exit:
             self.background.start_storm()
+
+    def _rest_at_patras_bench(self):
+        if self.level_name != "Patras City" or self.background.sunrise_started:
+            return
+        bench_x = PATRAS_CITY_WORLD_WIDTH - 520
+        is_at_bench = self.player.rect.centerx >= bench_x - 50
+        has_food_and_water = self.collected["meat"] > 0 and self.collected["water"] > 0
+        if not is_at_bench or not has_food_and_water:
+            return
+        self.collected["meat"] = 0
+        self.collected["water"] = 0
+        self.player.resting = True
+        self.background.start_sunrise()
 
     def _update_lochness_animation(self):
         if self.level_name != "Mountain River":
@@ -1089,7 +1416,7 @@ class Game:
             self.background.lochness_visible = True
 
     def _throw_weapon(self):
-        if self.level_name != "Nafpaktos" or self.collected["weapon"] <= 0:
+        if self.level_name not in ("Nafpaktos", "Β1 τάξη") or self.collected["weapon"] <= 0:
             return
         self.collected["weapon"] -= 1
         self.thrown_weapons.append(
@@ -1097,9 +1424,11 @@ class Game:
         )
 
     def _update_combat(self, delta_time):
-        if self.level_name != "Nafpaktos" or not self.velociraptor:
+        self.enemy_hit_cooldown = max(0.0, self.enemy_hit_cooldown - delta_time)
+        if self.level_name not in ("Nafpaktos", "Β1 τάξη") or not self.velociraptor:
             return
         self.velociraptor.update(delta_time, self.player, self.camera_x)
+        self._handle_enemy_contact()
         for thrown_weapon in self.thrown_weapons[:]:
             thrown_weapon.update(delta_time)
             if thrown_weapon.rect.colliderect(self.velociraptor.rect) and not self.velociraptor.dead:
@@ -1108,10 +1437,53 @@ class Game:
             elif thrown_weapon.rect.right < 0 or thrown_weapon.rect.left > self.world_width:
                 self.thrown_weapons.remove(thrown_weapon)
 
+    def _handle_enemy_contact(self):
+        enemy = self.velociraptor
+        if enemy.dead or self.enemy_hit_cooldown > 0 or not enemy.rect.colliderect(self.player.rect):
+            return
+        self.health = max(0, self.health - 1)
+        if self.health == 0:
+            self.show_game_over = True
+        self.enemy_hit_cooldown = 0.8
+        if enemy.rect.centerx <= self.player.rect.centerx:
+            enemy.rect.right = max(0, self.player.rect.left - 180)
+        else:
+            enemy.rect.left = min(self.world_width - enemy.rect.width, self.player.rect.right + 180)
+
+    def _restart_from_first_level(self):
+        self.level_name = "Rio–Antirrio Bridge"
+        self.world_width = BRIDGE_WORLD_WIDTH
+        self.background = BridgeBackground()
+        self.platforms = self._create_bridge_platforms()
+        self.resources = self._create_resources()
+        self.collected = {resource_type: 0 for resource_type in RESOURCE_TARGETS}
+        self.health = MAX_HEALTH
+        self.enemy_hit_cooldown = 0.0
+        self.player = Player()
+        self.velociraptor = None
+        self.sick_apatosaurus = None
+        self.dropped_supplies = []
+        self.thrown_weapons = []
+        self.camera_x = 0.0
+        self.show_world_menu = False
+        self.show_game_over = False
+
+    def _draw_game_over(self):
+        self.screen.fill((28, 20, 30))
+        title_font = pygame.font.Font(None, 76)
+        prompt_font = pygame.font.Font(None, 34)
+        title = title_font.render("ΤΕΛΟΣ ΠΑΙΧΝΙΔΙΟΥ", True, (240, 92, 83))
+        prompt = prompt_font.render("Πάτησε Space ή κάνε κλικ για νέα αρχή", True, (255, 244, 215))
+        self.screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 42)))
+        self.screen.blit(prompt, prompt.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 32)))
+
     def _check_level_transition(self):
         has_reached_nafpaktos_sign = self.player.rect.right >= BRIDGE_WORLD_WIDTH - 160
         has_reached_kravara_sign = self.player.rect.right >= NAFPAKTOS_WORLD_WIDTH - 160
         has_reached_antirrio_sign = self.player.rect.right >= MOUNTAIN_RIVER_WORLD_WIDTH - 150
+        has_reached_ferry_exit = self.player.rect.right >= FERRY_BOAT_WORLD_WIDTH - 70
+        has_reached_school_entrance = self.player.rect.right >= SCHOOL_WORLD_WIDTH - 70
+        has_finished_patras_sunrise = self.level_name == "Patras City" and self.background.sunrise_started and self.background.sunrise_progress >= 1.0
         if self.level_name == "Rio–Antirrio Bridge" and not self.resources and has_reached_nafpaktos_sign:
             self._start_nafpaktos_level()
         elif self.level_name == "Nafpaktos" and self.player.rect.left <= 0:
@@ -1120,14 +1492,23 @@ class Game:
             self._start_mountain_river_level()
         elif self.level_name == "Mountain River" and has_reached_antirrio_sign:
             self._start_ferry_boat_level()
+        elif self.level_name == "FerryBoat" and has_reached_ferry_exit:
+            self._start_patras_city_level()
+        elif has_finished_patras_sunrise:
+            self._start_school_level()
+        elif self.level_name == "49ο Δημοτικό" and has_reached_school_entrance:
+            self._start_classroom_level()
 
     @staticmethod
     def _world_menu_buttons():
         return [
-            (pygame.Rect(390, 220, 420, 64), "Rio–Antirrio Bridge"),
-            (pygame.Rect(390, 300, 420, 64), "Nafpaktos"),
-            (pygame.Rect(390, 380, 420, 64), "Mountain River"),
-            (pygame.Rect(390, 460, 420, 64), "FerryBoat"),
+            (pygame.Rect(390, 185, 420, 48), "Γέφυρα Ρίου–Αντιρρίου"),
+            (pygame.Rect(390, 237, 420, 48), "Ναύπακτος"),
+            (pygame.Rect(390, 289, 420, 48), "Ορεινό Ποτάμι"),
+            (pygame.Rect(390, 341, 420, 48), "Πλοίο"),
+            (pygame.Rect(390, 393, 420, 48), "Πάτρα"),
+            (pygame.Rect(390, 445, 420, 48), "49ο Δημοτικό"),
+            (pygame.Rect(390, 497, 420, 48), "Β1 τάξη"),
         ]
 
     def _start_selected_world(self, index):
@@ -1144,14 +1525,20 @@ class Game:
             self._start_mountain_river_level()
         elif index == 3:
             self._start_ferry_boat_level()
+        elif index == 4:
+            self._start_patras_city_level()
+        elif index == 5:
+            self._start_school_level()
+        elif index == 6:
+            self._start_classroom_level()
         else:
             return
-        if index in (1, 2, 3):
+        if index in (1, 2, 3, 4, 5, 6):
             self.collected = RESOURCE_TARGETS.copy()
         self.show_world_menu = False
 
     def _handle_world_menu_event(self, event):
-        if event.type == pygame.KEYDOWN and event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7):
             self._start_selected_world(event.key - pygame.K_1)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             for index, (button_rect, _) in enumerate(self._world_menu_buttons()):
@@ -1163,8 +1550,8 @@ class Game:
         self.screen.fill((31, 70, 88))
         title_font = pygame.font.Font(None, 58)
         subtitle_font = pygame.font.Font(None, 30)
-        title = title_font.render("Development World Select", True, (255, 245, 200))
-        subtitle = subtitle_font.render("Choose a world to launch", True, (225, 239, 244))
+        title = title_font.render("Επιλογή Πίστας", True, (255, 245, 200))
+        subtitle = subtitle_font.render("Διάλεξε πίστα για εκκίνηση", True, (225, 239, 244))
         self.screen.blit(title, title.get_rect(center=(WIDTH // 2, 125)))
         self.screen.blit(subtitle, subtitle.get_rect(center=(WIDTH // 2, 174)))
         for index, (button_rect, label) in enumerate(self._world_menu_buttons(), start=1):
@@ -1179,26 +1566,37 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif self.show_game_over and (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE or event.type == pygame.MOUSEBUTTONDOWN and event.button == 1):
+                    self._restart_from_first_level()
                 elif self.show_world_menu:
                     self._handle_world_menu_event(event)
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_LCTRL:
                     self._throw_weapon()
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_LSHIFT:
                     self._feed_sick_apatosaurus()
+                    self._rest_at_patras_bench()
 
             if self.show_world_menu:
                 self._draw_world_menu()
                 pygame.display.flip()
                 continue
 
+            if self.show_game_over:
+                self._draw_game_over()
+                pygame.display.flip()
+                continue
+
             keys = pygame.key.get_pressed()
-            ground_y = None if self.level_name in ("Mountain River", "FerryBoat") else ROAD_TOP
+            ground_y = None if self.level_name in ("Mountain River", "FerryBoat", "Patras City") else ROAD_TOP
+            previous_player_rect = self.player.rect.copy()
             self.player.update(delta_time, keys, True, self.platforms, self.world_width, ground_y)
             self._handle_mountain_river_water()
             self._handle_ferry_boat_water()
+            self._handle_patras_city_fall()
             self._update_ferry_storm()
             self._resolve_sick_apatosaurus_blocker()
             self._resolve_rocky_barrier()
+            self._resolve_classroom_desks(previous_player_rect)
             self._update_lochness_animation()
             self._collect_resources()
             self._check_level_transition()
@@ -1215,7 +1613,7 @@ class Game:
                 supply.draw(self.screen, self.camera_x)
             for thrown_weapon in self.thrown_weapons:
                 thrown_weapon.draw(self.screen, self.camera_x)
-            if self.level_name == "Nafpaktos" and self.velociraptor:
+            if self.level_name in ("Nafpaktos", "Β1 τάξη") and self.velociraptor:
                 self.velociraptor.draw(self.screen, self.camera_x, self.player.rect.centerx)
             if self.level_name == "Mountain River" and self.sick_apatosaurus:
                 self.sick_apatosaurus.draw(self.screen, self.camera_x)
