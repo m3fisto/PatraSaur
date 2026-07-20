@@ -1,17 +1,14 @@
-import random
 from pathlib import Path
 
 import pygame
 
 
-WIDTH, HEIGHT = 1200, 600
+WIDTH, HEIGHT = 1600, 600
 FPS = 60
 ROAD_TOP = 485
 GROUND_Y = ROAD_TOP - 66
 SKY = (123, 202, 235)
 ROAD = (48, 52, 58)
-WHITE = (255, 255, 255)
-BLACK = (24, 31, 36)
 RUN_FRAME_PATHS = (
     Path(__file__).with_name("dinoa.png"),
     Path(__file__).with_name("dinob.png"),
@@ -20,14 +17,6 @@ CROUCH_FRAME_PATH = Path(__file__).with_name("couching.png")
 
 
 class Background:
-    def __init__(self):
-        self.road_offset = 0.0
-        self.cable_offset = 0.0
-        self.mountain_offset = 0.0
-
-    def update(self, delta_time, moving):
-        pass
-
     def draw(self, screen):
         screen.fill(SKY)
         self._draw_mountains(screen)
@@ -36,18 +25,18 @@ class Background:
         pygame.draw.rect(screen, (215, 222, 226), (0, ROAD_TOP, WIDTH, 7))
 
         for marker_x in range(-80, WIDTH + 80, 80):
-            pygame.draw.rect(screen, (244, 202, 72), (marker_x - self.road_offset, 540, 42, 5))
+            pygame.draw.rect(screen, (244, 202, 72), (marker_x, 540, 42, 5))
 
     def _draw_mountains(self, screen):
         for base_x in range(-500, WIDTH + 500, 500):
-            position_x = base_x - self.mountain_offset
+            position_x = base_x
             points = [(position_x, ROAD_TOP), (position_x + 210, 275), (position_x + 430, ROAD_TOP)]
             pygame.draw.polygon(screen, (107, 143, 149), points)
             pygame.draw.polygon(screen, (92, 127, 132), [(position_x + 190, ROAD_TOP), (position_x + 350, 330), (position_x + 540, ROAD_TOP)])
 
     def _draw_bridge(self, screen):
         for base_x in range(-360, WIDTH + 360, 360):
-            pylon_x = base_x - self.cable_offset
+            pylon_x = base_x
             pylon_top = 130
             pygame.draw.rect(screen, (179, 187, 190), (pylon_x - 13, pylon_top, 26, ROAD_TOP - pylon_top))
             pygame.draw.rect(screen, (136, 148, 153), (pylon_x - 18, pylon_top, 36, 14))
@@ -86,9 +75,6 @@ class Player(pygame.sprite.Sprite):
         for image_path in RUN_FRAME_PATHS:
             frames.append(cls._load_frame(image_path, 78))
         return frames
-
-    def reset(self):
-        self.__init__()
 
     def update(self, delta_time, keys, active):
         if not active:
@@ -139,41 +125,6 @@ class Player(pygame.sprite.Sprite):
         image_rect = frames[stride_frame].get_rect(midbottom=self.rect.midbottom)
         screen.blit(frames[stride_frame], image_rect)
 
-
-class Obstacle(pygame.sprite.Sprite):
-    def __init__(self, obstacle_type):
-        super().__init__()
-        self.obstacle_type = obstacle_type
-        self.speed = 360
-        if obstacle_type == "taxi":
-            self.rect = pygame.Rect(WIDTH + 30, ROAD_TOP - 45, 82, 45)
-        elif obstacle_type == "barrier":
-            self.rect = pygame.Rect(WIDTH + 30, ROAD_TOP - 60, 34, 60)
-        else:
-            self.rect = pygame.Rect(WIDTH + 30, ROAD_TOP - 125, 62, 30)
-
-    def update(self, delta_time, active):
-        if active:
-            self.rect.x -= int(self.speed * delta_time)
-        if self.rect.right < 0:
-            self.kill()
-
-    def draw(self, screen):
-        if self.obstacle_type == "taxi":
-            pygame.draw.rect(screen, (235, 190, 45), self.rect, border_radius=5)
-            pygame.draw.rect(screen, BLACK, (self.rect.x + 18, self.rect.y + 7, 36, 16), border_radius=3)
-            pygame.draw.circle(screen, BLACK, (self.rect.x + 17, self.rect.bottom), 8)
-            pygame.draw.circle(screen, BLACK, (self.rect.right - 17, self.rect.bottom), 8)
-        elif self.obstacle_type == "barrier":
-            pygame.draw.rect(screen, WHITE, self.rect)
-            for stripe_y in range(self.rect.y + 5, self.rect.bottom, 16):
-                pygame.draw.rect(screen, (213, 65, 54), (self.rect.x, stripe_y, self.rect.width, 8))
-        else:
-            pygame.draw.ellipse(screen, (234, 242, 245), self.rect)
-            pygame.draw.polygon(screen, (197, 213, 219), [(self.rect.x + 22, self.rect.y + 13), (self.rect.x - 12, self.rect.y - 8), (self.rect.x + 28, self.rect.y + 21)])
-            pygame.draw.polygon(screen, (197, 213, 219), [(self.rect.right - 12, self.rect.y + 13), (self.rect.right + 12, self.rect.y - 2), (self.rect.right - 4, self.rect.y + 21)])
-
-
 class Game:
     def __init__(self):
         pygame.init()
@@ -182,7 +133,6 @@ class Game:
         self.clock = pygame.time.Clock()
         self.background = Background()
         self.player = Player()
-        self.obstacles = pygame.sprite.Group()
         self.running = True
 
     def run(self):
@@ -194,7 +144,6 @@ class Game:
 
             keys = pygame.key.get_pressed()
             self.player.update(delta_time, keys, True)
-            self.background.update(delta_time, False)
 
             self.background.draw(self.screen)
             self.player.draw(self.screen)
