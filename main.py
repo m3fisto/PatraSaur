@@ -12,7 +12,7 @@ MOUNTAIN_RIVER_WORLD_WIDTH = 3000
 FERRY_BOAT_WORLD_WIDTH = 3000
 PATRAS_CITY_WORLD_WIDTH = 3300
 SCHOOL_WORLD_WIDTH = 2000
-CLASSROOM_WORLD_WIDTH = 1500
+CLASSROOM_WORLD_WIDTH = 1200
 SICK_APATOSAURUS_X = MOUNTAIN_RIVER_WORLD_WIDTH - 580
 ROCKY_BARRIER_X = SICK_APATOSAURUS_X + 308
 STONE_BRIDGE_DECK_Y = 272
@@ -1041,7 +1041,9 @@ class ThrownWeapon:
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.fullscreen = True
+        self.screen = None
+        self._apply_display_mode()
         pygame.display.set_caption("T-Rex στη Γέφυρα Ρίου–Αντιρρίου")
         self.clock = pygame.time.Clock()
         self.background = BridgeBackground()
@@ -1063,6 +1065,14 @@ class Game:
         self.show_world_menu = True
         self.show_game_over = False
         self.running = True
+
+    def _apply_display_mode(self):
+        display_flags = pygame.FULLSCREEN if self.fullscreen else 0
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), display_flags)
+
+    def _toggle_fullscreen(self):
+        self.fullscreen = not self.fullscreen
+        self._apply_display_mode()
 
     @staticmethod
     def _create_bridge_platforms():
@@ -1511,6 +1521,10 @@ class Game:
             (pygame.Rect(390, 497, 420, 48), "Β1 τάξη"),
         ]
 
+    @staticmethod
+    def _fullscreen_checkbox_rect():
+        return pygame.Rect(390, 556, 26, 26)
+
     def _start_selected_world(self, index):
         if index == 0:
             self.level_name = "Rio–Antirrio Bridge"
@@ -1541,6 +1555,9 @@ class Game:
         if event.type == pygame.KEYDOWN and event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7):
             self._start_selected_world(event.key - pygame.K_1)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self._fullscreen_checkbox_rect().collidepoint(event.pos):
+                self._toggle_fullscreen()
+                return
             for index, (button_rect, _) in enumerate(self._world_menu_buttons()):
                 if button_rect.collidepoint(event.pos):
                     self._start_selected_world(index)
@@ -1559,6 +1576,14 @@ class Game:
             pygame.draw.rect(self.screen, (225, 240, 246), button_rect, 3, border_radius=12)
             button_text = subtitle_font.render(f"{index}. {label}", True, (255, 255, 255))
             self.screen.blit(button_text, button_text.get_rect(center=button_rect.center))
+
+        checkbox_rect = self._fullscreen_checkbox_rect()
+        pygame.draw.rect(self.screen, (225, 240, 246), checkbox_rect, 3, border_radius=4)
+        if self.fullscreen:
+            pygame.draw.line(self.screen, (118, 223, 158), checkbox_rect.topleft, checkbox_rect.bottomright, 4)
+            pygame.draw.line(self.screen, (118, 223, 158), checkbox_rect.bottomleft, checkbox_rect.topright, 4)
+        fullscreen_label = subtitle_font.render("Πλήρης οθόνη", True, (225, 239, 244))
+        self.screen.blit(fullscreen_label, fullscreen_label.get_rect(midleft=(checkbox_rect.right + 12, checkbox_rect.centery)))
 
     def run(self):
         while self.running:
