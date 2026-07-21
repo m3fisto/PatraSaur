@@ -1,6 +1,6 @@
 # T-Rex on the Rio–Antirrio Bridge
 
-A playable Pygame endless runner inspired by the Rio–Antirrio Bridge in Greece. It uses procedural placeholder graphics, so no external assets are required.
+A playable Pygame platform adventure inspired by the Rio–Antirrio Bridge and Patras in Greece.
 
 ## Run
 
@@ -12,9 +12,20 @@ A playable Pygame endless runner inspired by the Rio–Antirrio Bridge in Greece
 ## Controls
 
 - `Space` or `Up Arrow`: jump
-- `Down Arrow`: duck under seagulls
-- `R`: restart after a collision
+- `Down Arrow`: crouch under classroom desks
+- `Left Ctrl`: throw a weapon during velociraptor encounters
+- `Left Shift`: interact with the apatosaurus or Patras bench
+- `Space` or click: restart after game over
+
+## Project layout
+
+- `main.py`: small application entry point.
+- `game.py`: game state, progression, menus, HUD, and input loop.
+- `backgrounds.py`: procedural scenes for each world.
+- `entities.py`: player, enemies, collectibles, and platforms.
+- `config.py`: shared constants and asset paths.
+- `sprites/`: all PNG sprite assets.
 
 ## Next steps
 
-Replace the procedural drawing in `main.py` with files from an `assets/` directory when the final T-Rex, bridge, and obstacle art is ready.
+Add new worlds by creating a background in `backgrounds.py`, game objects in `entities.py`, and a transition in `game.py`.
