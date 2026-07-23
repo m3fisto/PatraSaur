@@ -670,4 +670,3 @@ class Game:
             pygame.display.flip()
 
         pygame.quit()
-
