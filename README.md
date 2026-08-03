@@ -29,3 +29,21 @@ A playable Pygame platform adventure inspired by the Rio–Antirrio Bridge and P
 ## Next steps
 
 Add new worlds by creating a background in `backgrounds.py`, game objects in `entities.py`, and a transition in `game.py`.
+
+
+
+
+commands to run 
+
+rm -rf ~/.buildozer/android/platform/ 
+rm -rf .buildozer/ ~/.buildozer/ 
+
+
+docker run --rm -it --platform linux/amd64 \
+  -v "$(pwd)":/home/user/hostcwd \
+  -v ~/.buildozer:/home/user/.buildozer \
+  --entrypoint /bin/bash \
+  kivy/buildozer:latest -c "
+    echo 'import ssl; ssl._create_default_https_context = ssl._create_unverified_context' > \$(python3 -c 'import site; print(site.getsitepackages()[0])')/sitecustomize.py
+    buildozer android debug
+  "
